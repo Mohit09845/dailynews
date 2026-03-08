@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<workspaceFilter version="1.0">
+    <filter root="/apps/dailynews/clientlibs"/>
+    <filter root="/apps/dailynews/components"/>
+    <filter root="/apps/dailynews/i18n"/>
+</workspaceFilter>
