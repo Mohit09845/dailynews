@@ -1,0 +1,6 @@
+{
+  "user.mapping": [
+    "dailynews.core:content-reader=dailynews-content-reader",
+    "dailynews.core:content-writer=dailynews-content-writer"
+  ]
+}
