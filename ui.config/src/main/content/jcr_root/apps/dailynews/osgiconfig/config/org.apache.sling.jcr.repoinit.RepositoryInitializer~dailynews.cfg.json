@@ -1,0 +1,29 @@
+{
+  "scripts": [
+
+    "create path (cq:Page) /content/dailynews",
+    "create path (cq:PageContent) /content/dailynews/jcr:content",
+
+    "create path (cq:Page) /content/dailynews/en",
+    "create path (cq:PageContent) /content/dailynews/en/jcr:content",
+
+    "create path (cq:Page) /content/dailynews/en/news",
+    "create path (cq:PageContent) /content/dailynews/en/news/jcr:content",
+
+    "create path (sling:OrderedFolder) /content/dailynews/en/news/archive",
+
+    "create path (sling:OrderedFolder) /content/dailynews/authors",
+
+    "create path (sling:OrderedFolder) /content/dam/dailynews",
+    "create path (nt:unstructured) /content/dam/dailynews/jcr:content",
+    "set properties on /content/dam/dailynews/jcr:content\n  set cq:conf{String} to /conf/dailynews\n  set jcr:title{String} to \"DailyNews Assets\"\nend",
+
+    "create service user dailynews-content-reader",
+    "create service user dailynews-content-writer",
+
+    "set ACL for dailynews-content-reader\n allow jcr:read on /content/dailynews\nend",
+
+    "set ACL for dailynews-content-writer\n allow jcr:read on /content/dailynews\n allow jcr:write on /content/dailynews\nend"
+
+  ]
+}
