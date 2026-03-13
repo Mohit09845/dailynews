@@ -1,39 +1,33 @@
 package com.dailynews.core.schedulers;
 
-import java.util.Calendar;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
 
-import org.apache.sling.api.resource.Resource;
-import org.apache.sling.api.resource.ResourceResolver;
-import org.apache.sling.api.resource.ResourceResolverFactory;
-
-import org.osgi.service.component.annotations.Component;
-import org.osgi.service.component.annotations.Reference;
-import org.osgi.service.component.annotations.Activate;
-import org.osgi.service.component.annotations.Modified;
-
+import org.apache.sling.event.jobs.JobManager;
+import org.osgi.service.component.annotations.*;
 import org.osgi.service.metatype.annotations.Designate;
+import org.apache.sling.commons.scheduler.Scheduler;
+import org.apache.sling.commons.scheduler.ScheduleOptions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dailynews.core.services.ArchiveArticleService;
 import com.dailynews.core.config.ArticleArchiverConfig;
 
-import static org.apache.xmlbeans.impl.util.XsTypeConverter.printDateTime;
-
-@Component(service = Runnable.class, immediate = true)
+@Component(immediate = true)
 @Designate(ocd = ArticleArchiverConfig.class)
-public class ArticleArchiveScheduler implements Runnable {
+public class ArticleArchiveScheduler {
+
     private static final Logger LOG = LoggerFactory.getLogger(ArticleArchiveScheduler.class);
 
-    @Reference
-    private ResourceResolverFactory resolverFactory;
+    private static final String JOB_TOPIC = "dailynews/archive/job";
+    private static final String SCHEDULER_NAME = "DailyNewsArticleArchiver";
 
     @Reference
-    private ArchiveArticleService archiveArticleService;
+    private Scheduler scheduler;
+
+    @Reference
+    private JobManager jobManager;
 
     private ArticleArchiverConfig config;
 
@@ -41,49 +35,38 @@ public class ArticleArchiveScheduler implements Runnable {
     @Modified
     protected void activate(ArticleArchiverConfig config) {
         this.config = config;
-        LOG.info("Article Archiver Scheduler Activated with cron: {}", config.scheduler_expression());
-    }
 
-    @Override
-    public void run() {
+        scheduler.unschedule(SCHEDULER_NAME);
 
-        LOG.info("Starting DailyNews Automatic Article Archiver...");
+        ScheduleOptions options = scheduler.EXPR(config.scheduler_expression());
+        options.name(SCHEDULER_NAME);
+        options.canRunConcurrently(false);
+        options.onLeaderOnly(true);
 
-        int successCount = 0;
-        int failureCount = 0;
-
-        Map<String, Object> serviceMap = new HashMap<>();
-        serviceMap.put(ResourceResolverFactory.SUBSERVICE, "content-writer");
-
-        try (ResourceResolver resolver = resolverFactory.getServiceResourceResolver(serviceMap)) {
-            Iterator<Resource> oldArticles = findOldArticles(resolver);
-
-            while (oldArticles.hasNext()) {
-                Resource articleContent = oldArticles.next();
-                String articlePath = articleContent.getParent().getPath();
-
-                try {
-                    archiveArticleService.archiveArticle(articlePath);
-                    LOG.info("Archived article: {}", articlePath);
-                    successCount++;
-
-                } catch (Exception e) {
-                    LOG.error("Failed to archive article {}", articlePath, e);
-                    failureCount++;
-                }
+        scheduler.schedule(new Runnable() {
+            @Override
+            public void run() {
+                triggerJob();
             }
+        }, options);
 
-            LOG.info("Article Archiver Summary -> Success: {}, Failed: {}", successCount, failureCount);
-
-        } catch (Exception e) {
-            LOG.error("Error executing Article Archiver Scheduler", e);
-        }
+        LOG.info("Article Archiver Scheduler started with cron {}", config.scheduler_expression());
     }
 
-    private Iterator<Resource> findOldArticles(ResourceResolver resolver) {
-        Calendar limitDate = Calendar.getInstance();
-        limitDate.add(Calendar.DAY_OF_YEAR, -config.days_limit());
-        String query = "SELECT * FROM [cq:PageContent] AS s WHERE ISDESCENDANTNODE(s, '" + config.news_root() + "') " + "AND s.[cq:lastReplicated] < CAST('" + printDateTime(limitDate) + "' AS DATE)";
-        return resolver.findResources(query, "JCR-SQL2");
+    @Deactivate
+    protected void deactivate() {
+        scheduler.unschedule(SCHEDULER_NAME);
+        LOG.info("Article Archiver Scheduler deactivated");
+    }
+
+    private void triggerJob() {
+        Map<String, Object> props = new HashMap<>();
+        props.put("newsRoot", config.news_root());
+        props.put("archiveRoot", config.archive_root());
+        props.put("daysLimit", config.days_limit());
+        props.put("batchSize", config.batch_size());
+
+        jobManager.addJob(JOB_TOPIC, props);
+        LOG.info("Archive job triggered");
     }
 }

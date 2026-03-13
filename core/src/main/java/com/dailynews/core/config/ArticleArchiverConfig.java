@@ -8,6 +8,7 @@ import org.osgi.service.metatype.annotations.ObjectClassDefinition;
         description = "Configuration for automatic archiving of old news articles"
 )
 public @interface ArticleArchiverConfig {
+
     @AttributeDefinition(name = "Cron Expression", description = "Scheduler cron expression (3:00 AM = 0 0 3 * * ?)")
     String scheduler_expression() default "0 0 3 * * ?";
 

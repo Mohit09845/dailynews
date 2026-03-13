@@ -24,17 +24,13 @@ public class ArchiveArticleServiceImpl implements ArchiveArticleService {
 
     @Override
     public void archiveArticle(String articlePath) throws Exception {
-
         Map<String, Object> serviceMap = new HashMap<>();
         serviceMap.put(ResourceResolverFactory.SUBSERVICE, "content-writer");
 
-        try (ResourceResolver resolver =
-                     resolverFactory.getServiceResourceResolver(serviceMap)) {
+        try (ResourceResolver resolver = resolverFactory.getServiceResourceResolver(serviceMap)) {
+            Session session = resolver.adaptTo(Session.class);  // We converted Sling API to JCR API because JCR Session supports node move operations.
 
-            Session session = resolver.adaptTo(Session.class);
-
-            String articleName =
-                    articlePath.substring(articlePath.lastIndexOf("/") + 1);
+            String articleName = articlePath.substring(articlePath.lastIndexOf("/") + 1);
 
             String destinationPath = ARCHIVE_ROOT + "/" + articleName;
 
@@ -47,14 +43,12 @@ public class ArchiveArticleServiceImpl implements ArchiveArticleService {
     }
 
     private void ensureArchiveFolder(Session session) throws Exception {
-
         if (!session.nodeExists(ARCHIVE_ROOT)) {
-
             Node newsNode = session.getNode(NEWS_ROOT);
-
             newsNode.addNode("archive", "sling:OrderedFolder");
-
             session.save();
         }
     }
 }
+
+// Session supports move Node, check Node(nodeExists), add Node.
